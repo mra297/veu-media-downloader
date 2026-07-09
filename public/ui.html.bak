@@ -1,0 +1,977 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>⬇️ Veu Downloader</title>
+<style>
+  :root { --bg:#0f1419; --card:#1a1f29; --border:#2a3140; --fg:#e6e9ef; --mute:#8a93a3; --accent:#ff7f3f; --ok:#34c759; --bad:#ff453a; --warn:#ffcc00; --info:#3b9eff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:-apple-system,Segoe UI,system-ui,sans-serif; background:var(--bg); color:var(--fg); padding:18px; max-width:900px; margin:0 auto; }
+  h1 { margin:0 0 4px; font-size:22px; }
+  .sub { color:var(--mute); font-size:13px; margin-bottom:16px; }
+  .panel { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:14px; }
+  textarea { width:100%; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; font-family:monospace; resize:vertical; }
+  .controls { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-top:10px; }
+  select, button { background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:8px 12px; border-radius:8px; font-size:13px; cursor:pointer; font-family:inherit; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#000; font-weight:600; }
+  button.danger { background:transparent; border-color:var(--bad); color:var(--bad); }
+  button:disabled { opacity:.5; cursor:wait; }
+  label.file { display:inline-flex; align-items:center; gap:6px; }
+  .stats { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px; font-size:13px; }
+  .stat { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:6px 12px; }
+  .stat b { font-size:16px; }
+  .item { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:5px 10px; margin-bottom:4px; display:flex; gap:10px; align-items:center; }
+  .item img { width:60px; height:34px; object-fit:cover; border-radius:4px; background:#0f1419; flex-shrink:0; }
+  .item .info { flex:1; min-width:0; }
+  .item .title { font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; line-height:1.3; }
+  .item .meta { color:var(--mute); font-size:11px; margin-top:1px; line-height:1.2; }
+  .item .bar { height:4px; background:#0f1419; border-radius:3px; margin-top:4px; overflow:hidden; }
+  .item .bar > div { height:100%; background:var(--accent); transition:width .3s; }
+  .badge { font-size:11px; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+  .badge.queued { background:rgba(255,204,0,.18); color:var(--warn); }
+  .badge.pending { background:#2a3140; color:var(--mute); }
+  .badge.running { background:rgba(59,158,255,.2); color:var(--info); }
+  .badge.done { background:rgba(52,199,89,.2); color:var(--ok); }
+  .badge.error { background:rgba(255,69,58,.2); color:var(--bad); }
+  .badge.stopped { background:rgba(255,204,0,.2); color:var(--warn); }
+  .item .acts { display:flex; gap:4px; flex-shrink:0; }
+  .item.sel { background:rgba(255,127,63,.12); border-color:var(--accent); }
+  .item .title a:hover { color:var(--accent) !important; text-decoration:underline !important; }
+  .item .acts button { padding:4px 8px; font-size:12px; }
+  .empty { color:var(--mute); text-align:center; padding:30px; font-style:italic; }
+  .plat { font-size:11px; padding:1px 6px; border-radius:6px; background:#0f1419; border:1px solid var(--border); }
+</style>
+</head>
+<body>
+  <h1>⬇️ Veu Downloader
+    <span style="float:right; display:inline-flex; gap:8px; align-items:center;">
+      <label id="bellLabel" style="display:inline-flex; gap:6px; align-items:center; padding:6px 10px; background:#1a1f29; border:1px solid #2a3140; border-radius:18px; cursor:pointer; font-size:13px;" title="Bật/tắt âm thanh + notification khi tải xong">
+        <input type="checkbox" id="bellChk" checked style="cursor:pointer;">
+        <span id="bellIcon">🔔</span>
+      </label>
+
+    </span>
+  </h1>
+  <div class="sub">Tải video đa nền tảng · YouTube · TikTok · Instagram · Facebook · Douyin</div>
+
+  <!-- Env update modal -->
+  <div id="envModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; width:90%; max-width:680px; max-height:85vh; display:flex; flex-direction:column;">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:16px;">🔄 Veu Updater — Check & Update môi trường</h3>
+        <button id="envClose" style="background:none; border:none; color:var(--mute); cursor:pointer; font-size:20px;">✕</button>
+      </div>
+      <div style="padding:14px 18px; flex:1; overflow:auto;">
+        <div id="envCheck" style="margin-bottom:14px;">⏳ Đang check...</div>
+        <div id="envProgress" style="display:none; padding:10px; background:#0f1419; border:1px solid var(--border); border-radius:6px; max-height:280px; overflow:auto;"></div>
+      </div>
+      <div style="padding:12px 18px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:flex-end;">
+        <button id="envClose2">Đóng</button>
+        <button class="primary" id="envUpdateBtn">⚡ Update All</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+    <label>🎯 Nền tảng:
+      <select id="platSel" style="background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:6px 10px; border-radius:6px; font-size:13px;">
+        <option value="all">🌐 Tất cả</option>
+        <option value="YouTube">📺 YouTube</option>
+        <option value="TikTok">🎵 TikTok</option>
+        <option value="Douyin">🎶 Douyin</option>
+        <option value="Facebook">📘 Facebook</option>
+        <option value="Instagram">📷 Instagram</option>
+      </select>
+    </label>
+    <label>📂 Loại:
+      <select id="kindSel" style="background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:6px 10px; border-radius:6px; font-size:13px;">
+        <option value="all">Tất cả</option>
+      </select>
+    </label>
+    <span style="color:var(--mute); font-size:12px;">(lọc cả khi quét kênh + queue hiển thị)</span>
+  </div>
+
+  <div class="panel">
+    <textarea id="links" rows="4" placeholder="Dán link vào đây (mỗi dòng 1 link)&#10;https://youtube.com/watch?v=...&#10;https://tiktok.com/@user/video/...&#10;https://instagram.com/reel/..."></textarea>
+    <div class="controls">
+      <select id="quality">
+        <option value="1080">🎬 1080p (mặc định)</option>
+        <option value="4k">📺 4K (2160p)</option>
+        <option value="720">📱 720p</option>
+        <option value="mp3">🎵 MP3 (chỉ tiếng)</option>
+      </select>
+      <label class="file"><input type="checkbox" id="skipDup" checked> Bỏ qua link đã tải</label>
+      <label class="file" title="Lưu thêm file ảnh thumbnail cạnh video"><input type="checkbox" id="dlThumb"> 🖼 Tải kèm thumbnail</label>
+      <button class="primary" id="addBtn">➕ Thêm vào hàng đợi</button>
+      <button id="previewBtn">👁 Xem trước</button>
+      <label class="file" style="border:1px solid var(--border); padding:8px 12px; border-radius:8px;">
+        📄 Tải file .txt<input type="file" id="txtFile" accept=".txt" style="display:none;">
+      </label>
+      <span id="addStatus" style="color:var(--mute); font-size:13px;"></span>
+    </div>
+  </div>
+
+  <details class="panel" style="padding:0;">
+    <summary style="cursor:pointer; padding:14px 16px; font-weight:600;">📡 Tải cả Kênh / Playlist (có bộ lọc)</summary>
+    <div style="padding:0 16px 14px;">
+      <input id="channelUrl" placeholder="Link kênh / playlist: youtube.com/@kenh  ·  youtube.com/playlist?list=..." style="width:100%; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:8px; padding:10px; font-size:13px; font-family:monospace;">
+      <div class="controls">
+        <label>Lấy <input type="number" id="chLimit" value="50" min="1" style="width:90px; background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:6px; border-radius:6px;"> video mới nhất <span style="color:var(--mute); font-size:11px;">(để trống = tất cả)</span></label>
+        <select id="chType">
+          <option value="all">📹 Tất cả loại</option>
+          <option value="long">🎬 Chỉ video dài</option>
+          <option value="shorts">🩳 Chỉ Shorts</option>
+        </select>
+        <label title="Bật lọc view sẽ quét kỹ từng video → chậm hơn">View ≥ <input type="number" id="chMinViews" value="0" min="0" step="10000" style="width:110px; background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:6px; border-radius:6px;"></label>
+      </div>
+      <div class="controls">
+        <button id="scanChannelBtn" class="primary">🔍 Quét kênh</button>
+        <span id="channelStatus" style="color:var(--mute); font-size:13px;"></span>
+      </div>
+      <div id="channelResult"></div>
+    </div>
+  </details>
+
+  <div id="previewBox"></div>
+
+  <!-- Settings panel (hidden by default) -->
+  <details class="panel" style="padding:0;">
+    <summary style="cursor:pointer; padding:10px 14px; font-weight:600; font-size:13px;">⚙️ Cài đặt · <span id="settingsHint" style="font-weight:normal; color:var(--mute);">...</span></summary>
+    <div style="padding:6px 14px 12px;">
+      <div class="controls">
+        <input id="dlDir" placeholder="Thư mục lưu: vd D:\Videos" style="flex:1; min-width:200px; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; font-size:13px; font-family:monospace;">
+        <button class="primary" id="saveDirBtn">💾 Lưu</button>
+        <button id="folderBtn">📂 Mở</button>
+        <label style="display:inline-flex; align-items:center; gap:6px; white-space:nowrap;">🔀 Luồng <input type="number" id="maxConc" value="2" min="1" max="5" style="width:50px; background:#0f1419; color:var(--fg); border:1px solid var(--border); padding:5px; border-radius:4px;"></label>
+      </div>
+      <div style="margin-top:6px;"><button id="pickDirBtn">📁 Duyệt thư mục...</button></div>
+    </div>
+  </details>
+
+  <!-- Action bar -->
+  <div class="controls" style="margin-bottom:8px; flex-wrap:wrap; align-items:center;">
+    <button class="primary" id="startAllBtn" style="font-size:14px; padding:8px 16px;">▶️ Tải về <span id="startAllCount" style="opacity:.85;"></span></button>
+    <button class="danger" id="stopBtn">⏹ Stop</button>
+    <button id="retryErrBtn" title="Thử lại tất cả video bị lỗi">🔄 Retry lỗi <span id="retryErrCount" style="opacity:.85;"></span></button>
+    <button id="clearBtn" title="Xoá các mục đã tải xong khỏi danh sách">🧹 Dọn xong</button>
+    <button id="showErrOnlyBtn" title="Chỉ hiện video lỗi/đã dừng">❌ Chỉ lỗi</button>
+    <button id="clearCacheBtn" title="Xoá log + cache (không xoá video đã tải)">🗑️ Xoá cache</button>
+    <input id="search" placeholder="🔍 Tìm trong hàng đợi..." style="flex:1; min-width:160px; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:7px 10px; font-size:13px;">
+    <span id="selHint" style="color:var(--mute); font-size:11px; flex-basis:100%;">💡 Kéo chuột để chọn nhiều · Chuột phải mở menu · Ctrl+V dán nhanh · Del xoá selected</span>
+  </div>
+
+  <div class="stats" id="stats"></div>
+
+  <!-- Folder browser modal -->
+  <div id="folderModal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:var(--card); border:1px solid var(--border); border-radius:12px; width:90%; max-width:680px; max-height:80vh; display:flex; flex-direction:column; box-shadow:0 16px 48px rgba(0,0,0,.5);">
+      <div style="padding:14px 18px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <h3 style="margin:0; font-size:16px;">📁 Chọn thư mục lưu video</h3>
+        <button id="fbClose" style="background:none; border:none; color:var(--mute); cursor:pointer; font-size:20px;">✕</button>
+      </div>
+      <div style="padding:10px 18px; border-bottom:1px solid var(--border); display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <button id="fbUp" title="Lên 1 cấp">⬆️</button>
+        <button id="fbRoot" title="Về danh sách ổ đĩa">🖥 Ổ đĩa</button>
+        <input id="fbPath" style="flex:1; min-width:200px; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:6px 10px; font-size:13px; font-family:monospace;" placeholder="Đường dẫn hiện tại">
+        <button id="fbGo" title="Đi đến đường dẫn">Đi</button>
+      </div>
+      <div id="fbList" style="flex:1; overflow:auto; padding:8px 12px; min-height:300px;"></div>
+      <div style="padding:12px 18px; border-top:1px solid var(--border); display:flex; gap:8px; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+        <button id="fbNewFolder">➕ Tạo folder mới</button>
+        <div style="display:flex; gap:8px;">
+          <button id="fbCancel">Huỷ</button>
+          <button class="primary" id="fbOk">✅ Chọn folder này</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Context menu -->
+  <div id="ctxMenu" style="display:none; position:fixed; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:4px; min-width:200px; box-shadow:0 8px 24px rgba(0,0,0,.5); z-index:1000;"></div>
+
+  <div id="queue" style="position:relative; user-select:none;"></div>
+  <div id="selectBox" style="display:none; position:fixed; border:1px solid var(--accent); background:rgba(255,127,63,.12); pointer-events:none; z-index:999;"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// Platform → kind options
+const PLATFORM_KINDS = {
+  all:       [['all','Tất cả']],
+  YouTube:   [['all','Tất cả'],['long','🎬 Video dài'],['shorts','🩳 Shorts'],['live','🔴 Live']],
+  TikTok:    [['all','Tất cả'],['video','🎬 Video'],['photo','🖼 Photo carousel']],
+  Douyin:    [['all','Tất cả'],['video','🎬 Video']],
+  Facebook:  [['all','Tất cả'],['video','🎬 Video'],['reels','🩳 Reels']],
+  Instagram: [['all','Tất cả'],['post','📷 Post'],['reels','🩳 Reels'],['igtv','📺 IGTV']],
+};
+function rebuildKinds(){
+  const plat = $('platSel').value;
+  const sel = $('kindSel');
+  const cur = sel.value;
+  sel.innerHTML = (PLATFORM_KINDS[plat]||PLATFORM_KINDS.all).map(([v,l])=>`<option value="${v}">${l}</option>`).join('');
+  if([...sel.options].some(o=>o.value===cur)) sel.value=cur;
+}
+function classifyKind(item){
+  // detect kind from item metadata (best effort)
+  if(!item) return 'all';
+  if(item.platform==='YouTube'){
+    if(item.isLive) return 'live';
+    if(item.isShort || (item.duration && item.duration<=60)) return 'shorts';
+    return 'long';
+  }
+  if(item.platform==='TikTok') return item.isPhoto ? 'photo' : 'video';
+  if(item.platform==='Facebook') return item.isReel ? 'reels' : 'video';
+  if(item.platform==='Instagram') return item.kind || 'post';
+  return 'all';
+}
+let errOnly = false;
+function matchFilter(item){
+  if(errOnly && item.status!=='error' && item.status!=='stopped') return false;
+  const plat = $('platSel').value;
+  const kind = $('kindSel').value;
+  const q = ($('search')?.value||'').toLowerCase().trim();
+  if(plat !== 'all' && item.platform !== plat) return false;
+  if(kind !== 'all'){
+    const k = classifyKind(item);
+    if(k !== kind) return false;
+  }
+  if(q && !(item.title||'').toLowerCase().includes(q) && !(item.uploader||'').toLowerCase().includes(q)) return false;
+  return true;
+}
+let lastQueue = [];
+let selectedIds = new Set();
+$('platSel').addEventListener('change', ()=>{ rebuildKinds(); $('kindSel').value='all'; renderQueue(lastQueue); });
+$('kindSel').addEventListener('change', ()=> renderQueue(lastQueue));
+rebuildKinds();
+// search box
+document.addEventListener('DOMContentLoaded', ()=>{
+  const s = $('search'); if(s) s.addEventListener('input', ()=> renderQueue(lastQueue));
+});
+setTimeout(()=>{ const s=$('search'); if(s && !s._bound){ s._bound=true; s.addEventListener('input', ()=> renderQueue(lastQueue)); } }, 100);
+const QUALITY_LABEL = { '1080':'1080p', '4k':'4K', '720':'720p', 'mp3':'MP3' };
+function esc(s){ return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function fmtDur(s){ if(!s) return ''; const m=Math.floor(s/60), ss=Math.floor(s%60); return m+':'+String(ss).padStart(2,'0'); }
+function fmtNum(n){ if(!n) return ''; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'K'; return n; }
+
+function setStatus(m, c){ const e=$('addStatus'); e.textContent=m; e.style.color = c==='err'?'var(--bad)':c==='ok'?'var(--ok)':'var(--mute)'; }
+
+function getLinks(){ return $('links').value.split(/[\r\n]+/).map(s=>s.trim()).filter(Boolean); }
+
+async function api(path, body){
+  const r = await fetch(path, { method:'POST', headers:{'Content-Type':'application/json'}, body: body?JSON.stringify(body):undefined });
+  if(!r.ok){ const j=await r.json().catch(()=>({})); throw new Error(j.error||r.status); }
+  return r.json();
+}
+
+$('addBtn').addEventListener('click', async ()=>{
+  const urls = getLinks();
+  if(!urls.length){ setStatus('Dán link vào đã!','err'); return; }
+  $('addBtn').disabled=true; setStatus(`Đang thêm ${urls.length} link...`);
+  try{
+    const j = await api('/api/add', { urls, quality:$('quality').value, skipDup:$('skipDup').checked, dlThumb:$('dlThumb').checked });
+    setStatus(`✅ Thêm ${j.added} vào "Chờ duyệt" | ⏭ Bỏ qua ${j.skipped} · Bấm ▶️ để bắt đầu tải`,'ok');
+    $('links').value='';
+  }catch(e){ setStatus('❌ '+e.message,'err'); }
+  finally{ $('addBtn').disabled=false; }
+});
+
+$('previewBtn').addEventListener('click', async ()=>{
+  const urls = getLinks().slice(0,5);
+  if(!urls.length){ setStatus('Dán link đã!','err'); return; }
+  const box = $('previewBox'); box.innerHTML='<div class="panel">⏳ Đang lấy thông tin...</div>';
+  const cards=[];
+  for(const url of urls){
+    try{
+      const m = await api('/api/preview', { url });
+      cards.push(`<div class="item">
+        <img src="${esc(m.thumbnail||'')}" onerror="this.style.visibility='hidden'">
+        <div class="info"><div class="title">${esc(m.title)}</div>
+          <div class="meta"><span class="plat">${esc(m.platform)}</span> · ${esc(m.uploader)} · ⏱ ${fmtDur(m.duration)} · 👁 ${fmtNum(m.viewCount)}${m.isShort?' · 🩳 Short':''}</div></div>
+      </div>`);
+    }catch(e){ cards.push(`<div class="item"><div class="info"><div class="meta" style="color:var(--bad)">❌ ${esc(url)}: ${esc(e.message)}</div></div></div>`); }
+  }
+  box.innerHTML = `<div class="panel"><b>Xem trước (${cards.length}):</b>${cards.join('')}</div>`;
+});
+
+$('txtFile').addEventListener('change', e=>{
+  const f = e.target.files[0]; if(!f) return;
+  const r = new FileReader();
+  r.onload = ()=>{ $('links').value = (($('links').value?$('links').value+'\n':'')+r.result).trim(); setStatus('📄 Đã nạp file','ok'); };
+  r.readAsText(f);
+});
+
+let lastScan = [];
+$('scanChannelBtn').addEventListener('click', async ()=>{
+  const url = $('channelUrl').value.trim();
+  if(!url){ $('channelStatus').textContent='Dán link kênh đã!'; return; }
+  const minV = parseInt($('chMinViews').value)||0;
+  const limV = parseInt($('chLimit').value)||50;
+  if(minV>0){
+    const est = Math.min(limV,30) * 2;
+    if(!confirm(`⚠️ Lọc theo View sẽ quét sâu từng video (~${est}s cho ${Math.min(limV,30)} video, tối đa 30 video).\n\nTiếp tục?`)) return;
+  }
+  $('scanChannelBtn').disabled=true;
+  $('channelStatus').innerHTML = minV>0
+    ? '⏳ Đang quét sâu (lấy view chính xác), có thể mất 30-60s...'
+    : '⏳ Đang quét kênh (vài giây)...';
+  $('channelResult').innerHTML='';
+  try{
+    const filters = {
+      minViews: parseInt($('chMinViews').value)||0,
+      videoType: $('chType').value,
+      platform: $('platSel').value,
+      kind: $('kindSel').value,
+    };
+    const limitVal = $('chLimit').value.trim();
+    const limit = limitVal === '' ? 0 : (parseInt(limitVal) || 50);
+    const j = await api('/api/expand', { url, limit, filters });
+    lastScan = j.entries;
+    window._extraInfo = j.deepScanned>0 ? ` · quét sâu ${j.deepScanned}${j.deepSkipped?` (bỏ ${j.deepSkipped} do giới hạn 30)`:''}` : '';
+    $('channelStatus').innerHTML = `✅ <b>${esc(j.channelTitle)}</b> — quét ${j.total}, sau lọc còn <b>${j.filtered}</b>${window._extraInfo}`;
+    if(j.entries.length){
+      // auto-push to queue with thumbnail/title/uploader so cards look right immediately
+      const r = await api('/api/add', { entries: j.entries, quality:$('quality').value, skipDup:true, dlThumb:$('dlThumb').checked });
+      $('channelStatus').innerHTML = `✅ <b>${esc(j.channelTitle)}</b> — đã đẩy ${r.added} video xuống hàng chờ duyệt · ⏭ ${r.skipped} trùng${window._extraInfo||''}`;
+      $('channelResult').innerHTML='';
+    }
+  }catch(e){ $('channelStatus').textContent='❌ '+e.message; }
+  finally{ $('scanChannelBtn').disabled=false; }
+});
+
+document.addEventListener('change', e=>{
+  const cb = e.target.closest('.qcheck'); if(!cb) return;
+  const id = parseInt(cb.dataset.cid);
+  if(cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+  renderQueue(lastQueue);
+});
+
+// Context menu
+const ctx = $('ctxMenu');
+function hideCtx(){ ctx.style.display='none'; }
+function showCtx(x, y, itemId){
+  const queued = lastQueue.filter(it=>it.status==='queued' && matchFilter(it));
+  const allQueuedIds = queued.map(it=>it.id);
+  const allSelected = allQueuedIds.length>0 && allQueuedIds.every(id=>selectedIds.has(id));
+  const selCount = [...selectedIds].filter(id=>queued.find(it=>it.id===id)).length;
+  // NOTE: right-click only opens menu; does NOT auto-select the item
+  const items = [
+    { label: allSelected ? '☐ Bỏ chọn tất cả' : '☑ Chọn tất cả', act:'toggleAll', enabled: queued.length>0 },
+    { label: '✕ Bỏ chọn các video đã chọn', act:'clearSel', enabled: selCount>0 },
+    { sep:true },
+    { label: `▶️ Tải video đã chọn${selCount>0?' ('+selCount+')':''}`, act:'startSel', enabled: selCount>0, primary:true },
+    { label: `🗑 Xoá video đã chọn${selCount>0?' ('+selCount+')':''}`, act:'delSel', enabled: selCount>0, danger:true },
+  ];
+  ctx.innerHTML = items.map(it=>{
+    if(it.sep) return '<div style="height:1px;background:var(--border);margin:4px 0;"></div>';
+    const color = it.primary?'var(--accent)':it.danger?'var(--bad)':'var(--fg)';
+    return `<div data-act="${it.act}" style="padding:8px 12px; cursor:${it.enabled?'pointer':'not-allowed'}; color:${it.enabled?color:'var(--mute)'}; border-radius:4px; font-size:13px;" ${it.enabled?'':'data-disabled'}>${it.label}</div>`;
+  }).join('');
+  // position
+  ctx.style.display='block';
+  const w = ctx.offsetWidth, h = ctx.offsetHeight;
+  const maxX = window.innerWidth - w - 8, maxY = window.innerHeight - h - 8;
+  ctx.style.left = Math.min(x, maxX) + 'px';
+  ctx.style.top = Math.min(y, maxY) + 'px';
+}
+ctx.addEventListener('mouseover', e=>{ const d=e.target.closest('[data-act]'); if(d && !d.hasAttribute('data-disabled')) d.style.background='var(--border)'; });
+ctx.addEventListener('mouseout', e=>{ const d=e.target.closest('[data-act]'); if(d) d.style.background=''; });
+ctx.addEventListener('click', async e=>{
+  const d = e.target.closest('[data-act]'); if(!d || d.hasAttribute('data-disabled')) return;
+  hideCtx();
+  const act = d.dataset.act;
+  const queued = lastQueue.filter(it=>it.status==='queued' && matchFilter(it));
+  if(act==='toggleAll'){
+    const ids = queued.map(it=>it.id);
+    const allSel = ids.every(id=>selectedIds.has(id));
+    if(allSel) ids.forEach(id=>selectedIds.delete(id));
+    else ids.forEach(id=>selectedIds.add(id));
+    renderQueue(lastQueue);
+  } else if(act==='clearSel'){ selectedIds.clear(); renderQueue(lastQueue); }
+  else if(act==='startSel'){
+    const ids = [...selectedIds];
+    for(const id of ids){ try{ await api('/api/start/'+id); }catch{} }
+    selectedIds.clear(); setStatus(`▶️ Bắt đầu tải ${ids.length} video`,'ok');
+  } else if(act==='delSel'){
+    if(!confirm(`Xoá ${selectedIds.size} video?`)) return;
+    const ids = [...selectedIds];
+    for(const id of ids){ try{ await api('/api/remove/'+id); }catch{} }
+    selectedIds.clear();
+  }
+});
+document.addEventListener('click', hideCtx);
+
+// Drag-select (Windows Explorer style) — CSS-only, no re-render → smooth
+const selBox = $('selectBox');
+let dragStart = null;
+let dragCache = []; // [{el, id, r}]
+let dragInitial = new Set(); // selection state BEFORE drag (for additive mode)
+function updateSelHint(){
+  const queued = lastQueue.filter(it=>it.status==='queued' && matchFilter(it));
+  const selCount = [...selectedIds].filter(id=>queued.find(it=>it.id===id)).length;
+  $('selHint').innerHTML = selCount>0
+    ? `✅ Đã chọn <b style="color:var(--accent)">${selCount}</b> video · chuột phải để mở menu`
+    : '💡 Kéo chuột để chọn · chuột phải mở menu';
+}
+$('queue').addEventListener('mousedown', e=>{
+  if(e.button !== 0) return;
+  if(e.target.closest('button, input, a, .item img, .title a')) return;
+  dragStart = { x: e.clientX, y: e.clientY, additive: e.ctrlKey||e.shiftKey };
+  // snapshot all queued items + checkboxes states
+  dragCache = [];
+  document.querySelectorAll('#queue .item[data-queued="1"]').forEach(el=>{
+    dragCache.push({ el, id: parseInt(el.dataset.id), r: el.getBoundingClientRect(), cb: el.querySelector('.qcheck') });
+  });
+  if(!dragStart.additive){
+    // clear via CSS only
+    selectedIds.clear();
+    dragCache.forEach(o=>{ o.el.classList.remove('sel'); if(o.cb) o.cb.checked=false; });
+  }
+  dragInitial = new Set(selectedIds);
+  e.preventDefault();
+});
+let lastMouseY = 0, lastMouseX = 0, autoScrollTimer = null;
+function refreshDragRects(){
+  // recompute rects after scroll
+  for(const o of dragCache) o.r = o.el.getBoundingClientRect();
+}
+function updateDrag(){
+  if(!dragStart) return;
+  const x1 = Math.min(dragStart.x, lastMouseX), y1 = Math.min(dragStart.y, lastMouseY);
+  const x2 = Math.max(dragStart.x, lastMouseX), y2 = Math.max(dragStart.y, lastMouseY);
+  selBox.style.left=x1+'px'; selBox.style.top=y1+'px';
+  selBox.style.width=(x2-x1)+'px'; selBox.style.height=(y2-y1)+'px';
+  for(const o of dragCache){
+    const r = o.r;
+    const hit = !(r.right < x1 || r.left > x2 || r.bottom < y1 || r.top > y2);
+    const want = hit || dragInitial.has(o.id);
+    const has = selectedIds.has(o.id);
+    if(want && !has){ selectedIds.add(o.id); o.el.classList.add('sel'); if(o.cb) o.cb.checked=true; }
+    else if(!want && has){ selectedIds.delete(o.id); o.el.classList.remove('sel'); if(o.cb) o.cb.checked=false; }
+  }
+}
+function autoScrollLoop(){
+  if(!dragStart){ autoScrollTimer=null; return; }
+  const edge = 60, maxSpeed = 24;
+  const vh = window.innerHeight;
+  let dy = 0;
+  if(lastMouseY < edge) dy = -Math.round(maxSpeed * (1 - lastMouseY/edge));
+  else if(lastMouseY > vh - edge) dy = Math.round(maxSpeed * (1 - (vh-lastMouseY)/edge));
+  if(dy !== 0){
+    // adjust dragStart.y by scroll delta so box anchor stays visually consistent
+    const before = window.scrollY;
+    window.scrollBy(0, dy);
+    const after = window.scrollY;
+    const delta = after - before;
+    if(delta !== 0){ dragStart.y -= delta; refreshDragRects(); updateDrag(); }
+  }
+  autoScrollTimer = requestAnimationFrame(autoScrollLoop);
+}
+document.addEventListener('mousemove', e=>{
+  lastMouseX = e.clientX; lastMouseY = e.clientY;
+  if(!dragStart) return;
+  if(Math.abs(e.clientX-dragStart.x)+Math.abs(e.clientY-dragStart.y) < 4) return;
+  selBox.style.display='block';
+  updateDrag();
+  if(!autoScrollTimer) autoScrollTimer = requestAnimationFrame(autoScrollLoop);
+});
+document.addEventListener('mouseup', ()=>{
+  if(!dragStart) return;
+  dragStart=null; selBox.style.display='none';
+  if(autoScrollTimer){ cancelAnimationFrame(autoScrollTimer); autoScrollTimer=null; }
+  updateSelHint();
+});
+document.addEventListener('contextmenu', e=>{
+  const inQueue = e.target.closest('#queue, #stats');
+  if(!inQueue) return;
+  e.preventDefault();
+  const item = e.target.closest('.item');
+  // find item id from data-remove on its action buttons
+  let itemId = null;
+  if(item){
+    const rm = item.querySelector('[data-remove]'); if(rm) itemId = parseInt(rm.dataset.remove);
+  }
+  showCtx(e.clientX, e.clientY, itemId);
+});
+
+
+$('clearCacheBtn').addEventListener('click', async () => {
+  if (!confirm('Xoá log + cache?\n• app.log, errors.log\n• Lịch sử item đã tải xong > 30 ngày\n\nKhông xoá: cấu hình, video đã tải, hàng đợi đang chạy.')) return;
+  try {
+    const j = await api('/api/clear-cache', { method:'POST' });
+    setStatus(`✅ Đã xoá ${j.deleted} file + ${j.cleanedItems} item cũ • Giải phóng ${j.freed}`, 'ok');
+  } catch(e) { setStatus('❌ '+e.message, 'err'); }
+});
+
+$('retryErrBtn').addEventListener('click', async ()=>{
+  try{ const j=await api('/api/retry-all-errors'); setStatus(`🔄 Retry ${j.retried} video lỗi`,'ok'); }
+  catch(e){ setStatus('❌ '+e.message,'err'); }
+});
+$('showErrOnlyBtn').addEventListener('click', ()=>{
+  errOnly = !errOnly;
+  $('showErrOnlyBtn').style.background = errOnly ? 'var(--bad)' : '';
+  $('showErrOnlyBtn').style.color = errOnly ? '#fff' : '';
+  $('showErrOnlyBtn').textContent = errOnly ? '❌ Đang lọc lỗi' : '❌ Chỉ lỗi';
+  renderQueue(lastQueue);
+});
+$('startAllBtn').addEventListener('click', async ()=>{
+  try{ const j=await api('/api/start-all'); setStatus(`▶️ Bắt đầu tải ${j.started} video`,'ok'); }
+  catch(e){ setStatus('❌ '+e.message,'err'); }
+});
+$('stopBtn').addEventListener('click', ()=> api('/api/stop').then(()=>setStatus('⏹ Đã dừng','ok')));
+$('clearBtn').addEventListener('click', ()=> api('/api/clear-done'));
+$('folderBtn').addEventListener('click', ()=> api('/api/open-folder'));
+
+function renderQueue(items){
+  lastQueue = items; window.lastQueue = items;
+  const order = { running:0, pending:1, queued:2, stopped:3, error:4, done:5 };
+  items = [...items].filter(matchFilter).sort((a,b)=> (order[a.status]-order[b.status]) || (b.id-a.id));
+  // stats
+  const c = { queued:0, pending:0, running:0, done:0, error:0, stopped:0 };
+  for(const it of items) c[it.status] = (c[it.status]||0)+1;
+  const statBits = [`<div class="stat">📋 Tổng <b>${items.length}</b></div>`];
+  if(c.queued) statBits.push(`<div class="stat">🟡 Chờ duyệt <b>${c.queued}</b></div>`);
+  if(c.running) statBits.push(`<div class="stat">🔵 Đang tải <b>${c.running}</b></div>`);
+  if(c.pending) statBits.push(`<div class="stat">⏳ Chờ <b>${c.pending}</b></div>`);
+  if(c.done) statBits.push(`<div class="stat">✅ Xong <b>${c.done}</b></div>`);
+  if(c.error) statBits.push(`<div class="stat" style="border-color:var(--bad); color:var(--bad);">❌ Lỗi <b>${c.error}</b></div>`);
+  if(c.stopped) statBits.push(`<div class="stat">⏸ Dừng <b>${c.stopped}</b></div>`);
+  // overall progress bar when any running
+  if(c.running || c.pending){
+    const total = c.queued+c.pending+c.running+c.done+c.error+c.stopped;
+    const completed = c.done+c.error+c.stopped;
+    const pct = total>0 ? Math.round(completed/total*100) : 0;
+    statBits.push(`<div class="stat" style="flex:1; min-width:160px; background:transparent; padding:0; border:0;"><div style="font-size:11px; color:var(--mute); margin-bottom:3px;">Tiến độ chung: ${completed}/${total} (${pct}%)</div><div style="height:6px; background:#0f1419; border:1px solid var(--border); border-radius:4px; overflow:hidden;"><div style="height:100%; width:${pct}%; background:var(--accent); transition:width .3s;"></div></div></div>`);
+  }
+  $('stats').innerHTML = statBits.join('');
+  // update fixed top button count
+  $('startAllCount').textContent = c.queued>0 ? `(${c.queued} chờ duyệt)` : '';
+  $('startAllBtn').disabled = c.queued===0;
+  const errN = c.error + c.stopped;
+  $('retryErrCount').textContent = errN>0 ? `(${errN})` : '';
+  $('retryErrBtn').disabled = errN===0;
+  // sync hint with selected count
+  const selCount = [...selectedIds].filter(id=>items.find(it=>it.id===id&&it.status==='queued')).length;
+  $('selHint').innerHTML = selCount>0
+    ? `✅ Đã chọn <b style="color:var(--accent)">${selCount}</b> video · chuột phải để mở menu`
+    : '💡 Chuột phải vào hàng đợi để chọn / tải nhiều';
+
+  const q = $('queue');
+  if(!items.length){ q.innerHTML='<div class="empty">Chưa có gì trong hàng đợi. Dán link rồi bấm Thêm 🦊</div>'; return; }
+  q.innerHTML = items.map(it=>{
+    const stLabel = { queued:'🟡 Chờ duyệt', pending:'⏳ Chờ', running:'🔵 Đang tải', done:'✅ Xong', error:'❌ Lỗi', stopped:'⏸ Dừng' }[it.status]||it.status;
+    const acts = [];
+    if(it.status==='queued') acts.push(`<button data-start="${it.id}" title="Tải video này" class="primary" style="padding:4px 10px;">▶️ Tải</button>`);
+    if(it.status==='error'||it.status==='stopped') acts.push(`<button data-retry="${it.id}">🔄</button>`);
+    if(it.status==='done'&&it.file) acts.push(`<button data-copy="${esc(it.file)}" title="Copy đường dẫn">📋</button>`);
+    if(it.status==='done') acts.push(`<button data-split="${esc(it.file||'')}" data-itemid="${it.id}" title="Chia nhỏ video" style="background:#7c3aed; color:#fff;">✂️</button>`);
+    acts.push(`<button data-remove="${it.id}" title="Xoá">✕</button>`);
+    const showCheckbox = it.status==='queued';
+    const selCls = selectedIds.has(it.id) ? ' sel' : '';
+    return `<div class="item${selCls}" data-id="${it.id}" data-queued="${showCheckbox?1:0}">
+      ${showCheckbox?`<input type="checkbox" class="qcheck" data-cid="${it.id}" ${selectedIds.has(it.id)?'checked':''} style="width:18px;height:18px;flex-shrink:0;cursor:pointer;">`:''}
+      <a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở video gốc" style="flex-shrink:0;"><img src="${esc(it.thumbnail||'')}" onerror="this.style.visibility='hidden'" style="cursor:pointer;"></a>
+      <div class="info">
+        <div class="title"><a href="${esc(it.url)}" target="_blank" rel="noopener" title="Mở video gốc" style="color:var(--fg); text-decoration:none;">${esc(it.title)}</a></div>
+        <div class="meta"><span class="plat">${esc(it.platform)}</span> · ${esc(it.uploader||'')} · ${QUALITY_LABEL[it.quality]||it.quality}${it.error?' · <span style="color:var(--bad)">'+esc(it.error.slice(0,60))+'</span>':''}</div>
+        ${it.status==='running'?`<div class="bar"><div style="width:${it.percent||0}%"></div></div>`:''}
+        ${it.status==='done'&&it.file?`<div class="meta" style="color:var(--ok)">💾 ${esc(it.file)}</div>`:''}
+      </div>
+      <span class="badge ${it.status}">${stLabel}${it.status==='running'?' '+(it.percent||0).toFixed(0)+'%':''}</span>
+      <div class="acts">${acts.join('')}</div>
+    </div>`;
+  }).join('');
+}
+
+document.addEventListener('click', async e=>{
+  const sa=e.target.closest('[data-startall]'); if(sa){ const j=await api('/api/start-all'); setStatus(`▶️ Bắt đầu tải ${j.started} video`,'ok'); return; }
+  const st=e.target.closest('[data-start]'); if(st){ api('/api/start/'+st.dataset.start); return; }
+  const r=e.target.closest('[data-retry]'); if(r){ api('/api/retry/'+r.dataset.retry); return; }
+  const rm=e.target.closest('[data-remove]'); if(rm){ api('/api/remove/'+rm.dataset.remove); return; }
+  const cp=e.target.closest('[data-copy]'); if(cp){ try{ await navigator.clipboard.writeText(cp.dataset.copy); setStatus('📋 Đã copy đường dẫn','ok'); }catch{} return; }
+  const sp=e.target.closest('[data-split]'); if(sp){
+    let p = sp.dataset.split;
+    if(!p){
+      try {
+        const r = await api('/api/find-file', { itemId: parseInt(sp.dataset.itemid) });
+        p = r.file;
+      } catch(err){ setStatus('❌ Không tìm thấy file đã tải. Mở folder download để chia thủ công.','err'); return; }
+    }
+    openSplitModal(p); return;
+  }
+});
+
+// === Split modal — gọi Veu Splitter port 8780 ===
+function openSplitModal(videoPath){
+  let modal = document.getElementById('splitModal');
+  if(!modal){
+    modal = document.createElement('div');
+    modal.id = 'splitModal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:3000;align-items:center;justify-content:center;';
+    modal.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;width:90%;max-width:480px;padding:20px;">
+      <div style="font-weight:600;font-size:15px;margin-bottom:14px;">✂️ Chia nhỏ video</div>
+      <div style="font-size:11px;color:var(--mute);margin-bottom:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" id="splVid">video</div>
+      <label style="display:block;margin-bottom:6px;cursor:pointer;padding:8px;border:1px solid var(--border);border-radius:6px;">
+        <input type="radio" name="splMode" value="fixed" checked> ⏱ Cố định:
+        <input type="number" id="splFixed" value="3" step="1" min="1" max="600" style="width:70px;background:#0f1419;color:var(--fg);border:1px solid var(--border);padding:4px;border-radius:4px;"> giây
+      </label>
+      <label style="display:block;margin-bottom:14px;cursor:pointer;padding:8px;border:1px solid var(--border);border-radius:6px;">
+        <input type="radio" name="splMode" value="random"> 🎲 Random:
+        <input type="number" id="splMin" value="2" step="1" min="1" max="600" style="width:60px;background:#0f1419;color:var(--fg);border:1px solid var(--border);padding:4px;border-radius:4px;"> →
+        <input type="number" id="splMax" value="5" step="1" min="1" max="600" style="width:60px;background:#0f1419;color:var(--fg);border:1px solid var(--border);padding:4px;border-radius:4px;"> giây
+      </label>
+      <label style="display:block; font-size:12px; color:var(--mute); margin-bottom:4px;">📁 Thư mục lưu clip:</label>
+      <div style="display:flex; gap:6px; margin-bottom:12px;">
+        <input type="text" id="splOutDir" placeholder="(mặc định: cùng cấp video, folder _clips)" style="flex:1; background:#0f1419; color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:6px 8px; font-size:12px;">
+        <button id="splPickDir" style="padding:4px 10px;">📁</button>
+      </div>
+      <label style="display:flex;gap:8px;align-items:center;margin-bottom:14px;cursor:pointer;">
+        <input type="checkbox" id="splOpen" checked> 📂 Mở folder khi xong
+      </label>
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button id="splCancelBtn">Huỷ</button>
+        <button class="primary" id="splGoBtn">🚀 Chia ngay</button>
+      </div>
+      <div id="splStatus" style="margin-top:10px;font-size:12px;color:var(--mute);"></div>
+    </div>`;
+    document.body.appendChild(modal);
+    document.getElementById('splCancelBtn').addEventListener('click', async () => {
+      modal.style.display = 'none';
+      // Nếu đang chia → gọi cancel
+      if (document.getElementById('splGoBtn').disabled) {
+        try { await fetch('http://127.0.0.1:8780/api/cancel', { method:'POST' }); setStatus('⏹ Đã huỷ chia','mute'); } catch{}
+        document.getElementById('splGoBtn').disabled = false;
+      }
+    });
+    document.getElementById('splPickDir').addEventListener('click', async () => {
+      if(!window.electronAPI){ alert('Cần mở qua app'); return; }
+      const r = await window.electronAPI.pickFolder();
+      if(r.ok) document.getElementById('splOutDir').value = r.path;
+    });
+    document.getElementById('splGoBtn').addEventListener('click', async () => {
+      const mode = document.querySelector('input[name=splMode]:checked').value;
+      const customDir = document.getElementById('splOutDir').value.trim();
+      let vidPath = modal.dataset.path;
+      // Auto-find nếu file gốc thiếu (tên đổi/đã xoá)
+      try {
+        const chk = await fetch('/api/find-file?path=' + encodeURIComponent(vidPath));
+        const cj = await chk.json();
+        if (cj.found && cj.file && cj.file !== vidPath) {
+          vidPath = cj.file;
+          modal.dataset.path = vidPath;
+          document.getElementById('splVid').textContent = '📹 ' + vidPath.split(/[\\/]/).pop() + ' (auto-found)';
+        }
+      } catch{}
+      const body = {
+        videoPath: vidPath, mode,
+        fixedSec: parseFloat(document.getElementById('splFixed').value)||0.3,
+        randomMin: parseFloat(document.getElementById('splMin').value)||0.2,
+        randomMax: parseFloat(document.getElementById('splMax').value)||0.5,
+        outDir: customDir || undefined,
+        openFolder: document.getElementById('splOpen').checked,
+      };
+      const st = document.getElementById('splStatus');
+      st.textContent = '⏳ Đang chia...'; st.style.color='var(--mute)';
+      document.getElementById('splGoBtn').disabled = true;
+      const t = Date.now();
+      try {
+        const r = await fetch('http://127.0.0.1:8780/api/split', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+        const j = await r.json();
+        if(!r.ok) throw new Error(j.error||'fail');
+        const sec = ((Date.now()-t)/1000).toFixed(1);
+        st.textContent = `✅ ${j.totalClips} clip · ${sec}s`; st.style.color='var(--ok)';
+        setStatus(`✅ Đã chia ${j.totalClips} clip → ${j.outDir}`, 'ok');
+        setTimeout(() => modal.style.display='none', 1500);
+      } catch(e){
+        st.textContent = '❌ '+e.message+' (Veu Splitter chưa chạy?)'; st.style.color='var(--bad)';
+      } finally { document.getElementById('splGoBtn').disabled = false; }
+    });
+  }
+  modal.dataset.path = videoPath;
+  document.getElementById('splVid').textContent = '📹 ' + videoPath.split(/[\\/]/).pop();
+  modal.style.display = 'flex';
+}
+
+// Settings
+function shortPath(p){ if(!p) return ''; const parts = p.split(/[\\\/]/); return parts.length>3 ? '…\\'+parts.slice(-2).join('\\') : p; }
+// In-app folder browser
+let fbCurrentPath = '';
+async function fbLoad(p){
+  fbCurrentPath = p || '';
+  $('fbPath').value = fbCurrentPath || '🖥 (Ổ đĩa)';
+  $('fbList').innerHTML = '<div style="color:var(--mute); padding:20px; text-align:center;">⏳ Đang tải...</div>';
+  try{
+    const r = await fetch('/api/list-folder?path='+encodeURIComponent(fbCurrentPath)).then(r=>r.json());
+    if(r.error){ $('fbList').innerHTML = `<div style="color:var(--bad); padding:20px;">❌ ${esc(r.error)}</div>`; return; }
+    if(!r.items.length){ $('fbList').innerHTML = '<div style="color:var(--mute); padding:20px; text-align:center;">📭 Thư mục trống</div>'; return; }
+    $('fbList').innerHTML = r.items.map(it=>
+      `<div class="fbItem" data-path="${esc(it.path)}" style="padding:7px 12px; cursor:pointer; border-radius:4px; font-size:13px; display:flex; align-items:center; gap:8px;">📁 ${esc(it.name)}</div>`
+    ).join('');
+  }catch(e){ $('fbList').innerHTML = `<div style="color:var(--bad); padding:20px;">❌ ${esc(e.message)}</div>`; }
+}
+function fbOpen(){
+  $('folderModal').style.display = 'flex';
+  const cur = $('dlDir').value.trim();
+  if(cur && /^[A-Za-z]:/.test(cur)) fbLoad(cur); else fbLoad('');
+}
+function fbCloseModal(){ $('folderModal').style.display='none'; }
+$('fbClose').onclick = $('fbCancel').onclick = fbCloseModal;
+$('fbOk').onclick = async ()=>{
+  if(!fbCurrentPath){ alert('Hãy chọn 1 thư mục cụ thể (vào trong 1 ổ đĩa)'); return; }
+  $('dlDir').value = fbCurrentPath;
+  try{
+    const s = await api('/api/settings', { downloadsDir: fbCurrentPath });
+    $('settingsHint').textContent = `📁 ${shortPath(s.resolvedDir||fbCurrentPath)} · 🔀 ${parseInt($('maxConc').value)||2} luồng`;
+    setStatus(`💾 Đã chọn: ${fbCurrentPath}`,'ok');
+  }catch(err){ setStatus('❌ '+err.message,'err'); }
+  fbCloseModal();
+};
+$('fbUp').onclick = async ()=>{
+  if(!fbCurrentPath) return;
+  const r = await fetch('/api/list-folder?path='+encodeURIComponent(fbCurrentPath)).then(r=>r.json());
+  fbLoad(r.parent || '');
+};
+$('fbRoot').onclick = ()=> fbLoad('');
+$('fbGo').onclick = ()=> fbLoad($('fbPath').value.trim());
+$('fbPath').addEventListener('keydown', e=>{ if(e.key==='Enter') fbLoad($('fbPath').value.trim()); });
+$('fbNewFolder').onclick = async ()=>{
+  if(!fbCurrentPath){ alert('Hãy vào trong 1 thư mục trước rồi tạo folder mới'); return; }
+  const name = prompt('Tên folder mới:', 'Veu Downloads');
+  if(!name) return;
+  try{
+    const r = await api('/api/create-folder', { parent: fbCurrentPath, name });
+    fbLoad(fbCurrentPath);
+    setStatus(`📁 Đã tạo: ${r.path}`,'ok');
+  }catch(err){ alert('❌ '+err.message); }
+};
+$('fbList').addEventListener('click', e=>{
+  const item = e.target.closest('.fbItem'); if(!item) return;
+  fbLoad(item.dataset.path);
+});
+$('fbList').addEventListener('mouseover', e=>{ const i=e.target.closest('.fbItem'); if(i) i.style.background='var(--border)'; });
+$('fbList').addEventListener('mouseout', e=>{ const i=e.target.closest('.fbItem'); if(i) i.style.background=''; });
+// Click outside to close
+$('folderModal').addEventListener('click', e=>{ if(e.target.id==='folderModal') fbCloseModal(); });
+// Esc to close
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && $('folderModal').style.display==='flex') fbCloseModal(); });
+async function loadSettings(){
+  try{
+    const s = await fetch('/api/settings').then(r=>r.json());
+    $('dlDir').value = s.downloadsDir || '';
+    $('settingsHint').textContent = `📁 ${shortPath(s.resolvedDir||'')} · 🔀 ${s.maxConcurrent||2} luồng`;
+    $('maxConc').value = s.maxConcurrent || 2;
+  }catch{}
+}
+$('saveDirBtn').addEventListener('click', async ()=>{
+  try{
+    const j = await api('/api/settings', { downloadsDir: $('dlDir').value, maxConcurrent: parseInt($('maxConc').value)||2 });
+    $('settingsHint').textContent = `📁 ${shortPath(j.resolvedDir||'')} · 🔀 ${parseInt($('maxConc').value)||2} luồng`;
+    setStatus('💾 Đã lưu thư mục','ok');
+  }catch(e){ setStatus('❌ '+e.message,'err'); }
+});
+$('pickDirBtn').addEventListener('click', async ()=>{
+  $('pickDirBtn').disabled = true; setStatus('📁 Đang mở...');
+  try{
+    // prefer native Electron picker (instant), fallback to HTTP-VBS
+    const j = window.electronAPI ? await window.electronAPI.pickFolder() : await api('/api/pick-folder');
+    if(j.ok && j.path){
+      $('dlDir').value = j.path;
+      const s = await api('/api/settings', { downloadsDir: j.path });
+      $('settingsHint').textContent = `📁 ${shortPath(s.resolvedDir||j.path)} · 🔀 ${parseInt($('maxConc').value)||2} luồng`;
+      setStatus(`💾 Đã chọn: ${j.path}`,'ok');
+    }else setStatus('Đã huỷ chọn','');
+  }catch(e){ setStatus('❌ '+e.message,'err'); }
+  finally{ $('pickDirBtn').disabled=false; }
+});
+$('maxConc').addEventListener('change', async ()=>{
+  try{ await api('/api/settings', { maxConcurrent: parseInt($('maxConc').value)||2 }); setStatus('🔀 Đã đổi số luồng','ok'); }catch{}
+});
+loadSettings();
+
+// Keyboard shortcuts
+document.addEventListener('keydown', e=>{
+  const tag = e.target.tagName;
+  const inInput = (tag==='INPUT'||tag==='TEXTAREA');
+  // Delete: xoá selected (chỉ khi không gõ trong input)
+  if((e.key==='Delete'||e.key==='Backspace') && !inInput && selectedIds.size>0){
+    e.preventDefault();
+    if(confirm(`Xoá ${selectedIds.size} video đã chọn?`)){
+      const ids=[...selectedIds]; (async()=>{ for(const id of ids){ try{ await api('/api/remove/'+id); }catch{} } selectedIds.clear(); })();
+    }
+  }
+  // Ctrl+A: chọn tất cả queued (chỉ khi không gõ input)
+  if(e.ctrlKey && e.key==='a' && !inInput){
+    e.preventDefault();
+    document.querySelectorAll('#queue .item[data-queued="1"]').forEach(el=>{
+      const id=parseInt(el.dataset.id); selectedIds.add(id); el.classList.add('sel');
+      const cb=el.querySelector('.qcheck'); if(cb) cb.checked=true;
+    });
+    updateSelHint();
+  }
+  // Ctrl+V: paste link → auto thêm vào ô textarea + focus
+  if(e.ctrlKey && e.key==='v' && !inInput){
+    navigator.clipboard.readText().then(t=>{
+      if(t && /^https?:\/\//i.test(t.trim())){
+        $('links').value = ($('links').value?$('links').value+'\n':'') + t.trim();
+        $('links').focus();
+        setStatus('📋 Đã dán từ clipboard','ok');
+      }
+    }).catch(()=>{});
+  }
+  // Enter trong ô quét kênh → trigger quét
+  if(e.key==='Enter' && e.target.id==='channelUrl'){ e.preventDefault(); $('scanChannelBtn').click(); }
+});
+
+// Drag-drop file .txt vào trang
+['dragover','drop'].forEach(t=>document.addEventListener(t,e=>{e.preventDefault();}));
+document.addEventListener('drop', e=>{
+  const f = e.dataTransfer?.files?.[0]; if(!f) return;
+  if(!/\.txt$/i.test(f.name)) { setStatus('Chỉ chấp nhận file .txt','err'); return; }
+  const r=new FileReader();
+  r.onload=()=>{ $('links').value=(($('links').value?$('links').value+'\n':'')+r.result).trim(); setStatus(`📄 Đã nạp ${f.name}`,'ok'); };
+  r.readAsText(f);
+});
+
+// Notification khi tải xong (Browser Notification API)
+let lastDoneCount = 0;
+if('Notification' in window && Notification.permission==='default') Notification.requestPermission().catch(()=>{});
+function checkDoneNotify(items){
+  const done = items.filter(i=>i.status==='done').length;
+  if(done > lastDoneCount && lastDoneCount > 0 && 'Notification' in window && Notification.permission==='granted'){
+    const newones = done - lastDoneCount;
+    new Notification('✅ Veu Media Downloader', { body: `${newones} video vừa tải xong!`, silent: false });
+  }
+  lastDoneCount = done;
+}
+
+// Env updater modal
+async function envLoadCheck(){
+  $('envCheck').innerHTML = '⏳ Đang check...';
+  try{
+    const r = await fetch('/api/env-check').then(r=>r.json());
+    const badge = (st)=>{ const colors={'up-to-date':'#34c759','installed':'#34c759','outdated':'#ffcc00','missing':'#ff453a'}; return `<span style="font-size:11px; padding:2px 8px; border-radius:10px; background:${colors[st]||'#2a3140'}33; color:${colors[st]||'#8a93a3'};">${st}</span>`; };
+    let h = '<div style="display:grid; gap:6px;"><b>🛠 Tools:</b>';
+    for(const t of r.tools){
+      h += `<div style="display:flex; gap:10px; padding:5px 8px; background:#0f1419; border-radius:6px;"><span style="flex:1;"><b>${esc(t.name)}</b> <span style="color:var(--mute);">${esc(t.installed||'chưa cài')}${t.latest?' (mới: '+esc(t.latest)+')':''}</span></span>${badge(t.status)}</div>`;
+    }
+    h += '</div><div style="margin-top:10px;"><b>📱 Apps:</b>';
+    for(const a of r.apps){
+      h += `<div style="padding:5px 8px; background:#0f1419; border-radius:6px; margin-top:4px; color:var(--mute); font-size:12px;"><b style="color:var(--fg);">${esc(a.name)}</b> · v${esc(a.version||'?')} · Electron ${esc(a.electron||'—')}</div>`;
+    }
+    h += '</div><div style="margin-top:10px; display:flex; gap:6px; flex-wrap:wrap;">';
+    for(const d of r.drives){
+      const c = d.freeGB<5?'#ff453a':d.freeGB<20?'#ffcc00':'#34c759';
+      h += `<span style="padding:5px 10px; background:#0f1419; border-radius:6px; font-size:12px;">💾 ${d.drive} <b style="color:${c};">${d.freeGB} GB</b></span>`;
+    }
+    h += '</div>';
+    $('envCheck').innerHTML = h;
+  }catch(e){ $('envCheck').innerHTML = `<span style="color:var(--bad);">❌ ${esc(e.message)}</span>`; }
+}
+if($('envBtn')) $('envBtn').addEventListener('click', ()=>{ $('envModal').style.display='flex'; $('envProgress').style.display='none'; envLoadCheck(); });
+if($('envClose')) $('envClose').onclick = ()=> $('envModal').style.display='none';
+if($('envClose2')) $('envClose2').onclick = ()=> $('envModal').style.display='none';
+if($('envModal')) $('envModal').addEventListener('click', e=>{ if(e.target.id==='envModal') $('envModal').style.display='none'; });
+if($('envUpdateBtn')) $('envUpdateBtn').addEventListener('click', async ()=>{
+  if(!confirm('⚡ Update yt-dlp + ffmpeg + npm. Tiếp tục?')) return;
+  $('envUpdateBtn').disabled = true;
+  $('envProgress').style.display = 'block';
+  $('envProgress').innerHTML = '<div style="color:var(--mute);">⏳ Bắt đầu...</div>';
+  await fetch('/api/env-update', { method:'POST' });
+});
+const envEv = new EventSource('/api/env-events');
+const _envIcons = { running:'⏳', done:'✅', fail:'❌' };
+const _envColors = { running:'var(--mute)', done:'var(--ok)', fail:'var(--bad)' };
+envEv.onmessage = e => {
+  try{
+    const m = JSON.parse(e.data);
+    if(m.step==='start') $('envProgress').innerHTML = '';
+    else if(m.step==='tick'){
+      $('envProgress').innerHTML = (m.allSteps||[]).map(s=>
+        `<div style="padding:5px 0; color:${_envColors[s.status]||'var(--fg)'}; font-size:13px;">${_envIcons[s.status]||''} ${esc(s.msg)}</div>`
+      ).join('');
+      $('envProgress').scrollTop = $('envProgress').scrollHeight;
+    }
+    else if(m.step==='finish'){
+      const fails = (m.summary||[]).filter(s=>s.status==='fail').length;
+      $('envProgress').innerHTML += `<div style="margin-top:10px; padding:8px; background:${fails===0?'rgba(52,199,89,.15)':'rgba(255,204,0,.15)'}; border-radius:6px; font-weight:600;">${fails===0?'✅ Update hoàn tất!':`⚠️ Xong nhưng ${fails} bước có vấn đề`}</div>`;
+      $('envUpdateBtn').disabled = false;
+      setTimeout(envLoadCheck, 500);
+    }
+  }catch{}
+};
+
+// SSE — listen queue updates + done/error events trong 1 connection
+const ev = new EventSource('/api/events');
+ev.onmessage = e => { try{ const items=JSON.parse(e.data); checkDoneNotify(items); renderQueue(items); }catch{} };
+ev.addEventListener('done', e => {
+  try { const d = JSON.parse(e.data); if (window._veuPlaySound) window._veuPlaySound('download-done'); if (window._veuShowNotif) window._veuShowNotif('✅ Đã tải xong (' + (d.quality||'') + ')', d.title || 'video'); } catch(err){ console.log('done evt err', err); }
+});
+ev.addEventListener('error', e => {
+  try { const d = JSON.parse(e.data); if (window._veuPlaySound) window._veuPlaySound('error'); if (window._veuShowNotif) window._veuShowNotif('❌ Tải lỗi', d.title + ' — ' + (d.error||'')); } catch{}
+});
+ev.onerror = ()=> setTimeout(()=>location.reload(), 5000);
+
+// ============================================================
+// BELL TOGGLE — sound + notification on download done
+// ============================================================
+(function(){
+  const bellChk = document.getElementById('bellChk');
+  const bellIcon = document.getElementById('bellIcon');
+  if (!bellChk) return;
+  // Restore from localStorage
+  const saved = localStorage.getItem('veuBell');
+  bellChk.checked = saved === null ? true : saved === '1';
+  function refresh(){ bellIcon.textContent = bellChk.checked ? '🔔' : '🔕'; }
+  refresh();
+  bellChk.addEventListener('change', () => {
+    localStorage.setItem('veuBell', bellChk.checked ? '1' : '0');
+    refresh();
+    // Phát âm thử khi bật chuông (để anh biết đang bật)
+    if (bellChk.checked) {
+      const a = new Audio('/sounds/download-done.mp3');
+      a.volume = 0.7;
+      a.play().catch(()=>{});
+    }
+  });
+  // Test button — bỏ qua check bellChk để anh test sound
+  const bellTest = document.getElementById('bellTest');
+  if (bellTest) bellTest.addEventListener('click', () => {
+    const a = new Audio('/sounds/download-done.mp3');
+    a.volume = 0.7;
+    a.play().then(() => console.log('played OK')).catch(e => { console.error('PLAY ERR:', e.message); alert('Lỗi phát âm: ' + e.message); });
+  });
+
+  // Notification permission
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(()=>{});
+  }
+  function playSound(name){
+    if (!bellChk.checked) return;
+    try { const a = new Audio('/sounds/' + name + '.mp3'); a.volume = 0.7; a.play().catch(()=>{}); } catch{}
+  }
+  function showNotif(title, body){
+    if (!bellChk.checked) return;
+    if (window.electronAPI && window.electronAPI.notify) {
+      window.electronAPI.notify({ title, body, silent: true }).catch(()=>{});
+      return;
+    }
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const n = new Notification(title, { body, silent: true });
+        setTimeout(() => n.close(), 6000);
+        n.onclick = () => { window.focus(); n.close(); };
+      }
+    } catch{}
+  }
+
+  // Expose để SSE listener bên ngoài gọi được
+  window._veuPlaySound = playSound;
+  window._veuShowNotif = showNotif;
+  window.veuTestSound = playSound;
+})();
+
+
+</script>
+</body>
+</html>

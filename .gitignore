@@ -1,0 +1,36 @@
+# Secrets & per-user data — KHÔNG đẩy lên GitHub
+cookies.txt
+config.json
+config.portable.json
+queue-state.json
+queue-state.BACKUP-*.json
+*.log
+errors.log
+
+# Build output
+dist/
+node_modules/
+
+# Binary lớn — giữ local, không đẩy git (bundle lúc build)
+bin/ffmpeg.exe
+bin/ffprobe.exe
+bin/deno.exe
+bin/yt-dlp.exe
+Veu-Updater.exe
+
+# Backups
+*.PRE-*.js
+*.PRE-*.json
+*.BACKUP-*
+
+# Downloaded media
+downloads/
+*.mp4
+*.webm
+*.mkv
+*.part
+*.ytdl
+
+# OS
+Thumbs.db
+Desktop.ini

@@ -1,0 +1,42 @@
+{
+  "name": "veu-media-downloader",
+  "version": "1.0.0",
+  "description": "Veu's multi-platform video downloader",
+  "main": "electron-main.js",
+  "scripts": {
+    "start": "node server.js",
+    "electron": "electron .",
+    "build": "electron-builder --win --x64 --dir"
+  },
+  "dependencies": {
+    "systray2": "^2.1.4"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^25.0.0"
+  },
+  "build": {
+    "appId": "com.veu.media-downloader",
+    "productName": "Veu Media Downloader",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "electron-main.js",
+      "preload.js",
+      "server.js",
+      "engine.js",
+      "config.json",
+      "public/**",
+      "icon.ico",
+      "node_modules/**"
+    ],
+    "extraResources": [],
+    "win": {
+      "icon": "icon.ico",
+      "target": [
+        "dir"
+      ]
+    }
+  }
+}
