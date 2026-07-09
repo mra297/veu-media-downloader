@@ -7,15 +7,44 @@ const engine = require('./engine.js');
 const capcut = require('./capcut-injector.js');
 
 const ROOT = __dirname;
-const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+const DEFAULT_CFG = { port: 8770, notifierUrl: 'http://localhost:8765', ytDlpPath: 'yt-dlp', maxConcurrent: 3, ffmpegPath: 'ffmpeg', downloadsDir: 'downloads', defaultQuality: '1080' };
+let cfg;
+try {
+  cfg = JSON.parse(fs.readFileSync(path.join(ROOT, 'config.json'), 'utf8'));
+} catch {
+  cfg = { ...DEFAULT_CFG };
+  try { fs.writeFileSync(path.join(ROOT, 'config.json'), JSON.stringify(cfg, null, 2)); } catch {}
+}
 engine.init(cfg);
 
+function defaultDownloadDir() {
+  // Thư mục an toàn cho mọi máy: Videos\VeuDownloader trong user profile
+  const home = process.env.USERPROFILE || process.env.HOME || ROOT;
+  return path.join(home, 'Videos', 'VeuDownloader');
+}
 function getDownloadDir() {
-  return path.isAbsolute(cfg.downloadsDir) ? cfg.downloadsDir : path.join(ROOT, cfg.downloadsDir);
+  let d = path.isAbsolute(cfg.downloadsDir) ? cfg.downloadsDir : path.join(ROOT, cfg.downloadsDir);
+  // Nếu ổ đĩa/đường dẫn không truy cập được (vd T:\ trên máy khác) → fallback an toàn
+  try {
+    const drive = path.parse(d).root; // vd "T:\"
+    if (drive && drive.match(/^[A-Za-z]:\\$/) && !fs.existsSync(drive)) {
+      d = defaultDownloadDir();
+    }
+  } catch { d = defaultDownloadDir(); }
+  return d;
 }
 {
-  const d = getDownloadDir();
-  if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  try {
+    let d = getDownloadDir();
+    if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+  } catch (e) {
+    // Nếu vẫn lỗi → dùng thư mục mặc định, không để app chết
+    try {
+      const d = defaultDownloadDir();
+      if (!fs.existsSync(d)) fs.mkdirSync(d, { recursive: true });
+      cfg.downloadsDir = d;
+    } catch {}
+  }
 }
 const STATE_FILE = path.join(ROOT, 'queue-state.json');
 const LOG_FILE = path.join(ROOT, 'app.log');
