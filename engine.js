@@ -18,23 +18,24 @@ const USER_AGENTS = [
 function pickUserAgent() { return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]; }
 
 
+// Tìm file trong bin — hỗ trợ cả dev (__dirname/bin) lẫn bản đóng gói (resources/bin)
+function binPath(name) {
+  const dirs = [path.join(__dirname, 'bin')];
+  if (process.resourcesPath) dirs.push(path.join(process.resourcesPath, 'bin'));
+  for (const d of dirs) { const p = path.join(d, name); if (fs.existsSync(p)) return p; }
+  return null;
+}
 function resolveYtDlp() {
-  const local = path.join(__dirname, 'bin', 'yt-dlp.exe');
-  if (fs.existsSync(local)) return local;
-  return cfg.ytDlpPath || 'yt-dlp';
+  return binPath('yt-dlp.exe') || cfg.ytDlpPath || 'yt-dlp';
 }
 function resolveFfmpeg() {
-  const local = path.join(__dirname, 'bin', 'ffmpeg.exe');
-  if (fs.existsSync(local)) return local;
-  return cfg.ffmpegPath || 'ffmpeg';
+  return binPath('ffmpeg.exe') || cfg.ffmpegPath || 'ffmpeg';
 }
 // Deno JS runtime — YouTube (2026+) yêu cầu JS runtime để giải mã link, tránh HTTP 403.
 function resolveDeno() {
-  const candidates = [
-    path.join(__dirname, 'bin', 'deno.exe'),
-    'C:\\veutools\\deno\\deno.exe',
-  ];
-  for (const p of candidates) { if (fs.existsSync(p)) return p; }
+  const fromBin = binPath('deno.exe');
+  if (fromBin) return fromBin;
+  if (fs.existsSync('C:\\veutools\\deno\\deno.exe')) return 'C:\\veutools\\deno\\deno.exe';
   return null;
 }
 // Chèn --js-runtimes deno:<path> vào đầu args (nếu có Deno). Gọi trước mỗi spawn yt-dlp.

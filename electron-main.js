@@ -6,6 +6,33 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 const path = require('path');
 const fs = require('fs');
 
+// ===== Auto-update app qua GitHub Releases =====
+function setupAutoUpdater() {
+  try {
+    const { autoUpdater } = require('electron-updater');
+    autoUpdater.autoDownload = true;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.on('update-available', (info) => {
+      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] update-available: ${info.version}\n`); } catch {}
+    });
+    autoUpdater.on('update-downloaded', (info) => {
+      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] update-downloaded: ${info.version} — se cai khi thoat app\n`); } catch {}
+      // Báo cho UI biết có bản mới (nếu cần)
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.executeJavaScript(`window._veuUpdateReady && window._veuUpdateReady(${JSON.stringify(info.version)})`).catch(()=>{});
+      }
+    });
+    autoUpdater.on('error', (err) => {
+      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] updater err: ${err.message}\n`); } catch {}
+    });
+    // Check sau 6s cho app ổn định, rồi lặp mỗi 2 tiếng
+    setTimeout(() => { autoUpdater.checkForUpdates().catch(()=>{}); }, 6000);
+    setInterval(() => { autoUpdater.checkForUpdates().catch(()=>{}); }, 2 * 60 * 60 * 1000);
+  } catch (e) {
+    try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] setupAutoUpdater fail: ${e.message}\n`); } catch {}
+  }
+}
+
 // Set app identity (Windows notification header + taskbar)
 app.setName('Veu Downloader');
 if (process.platform === 'win32') app.setAppUserModelId('com.veu.downloader');
@@ -214,6 +241,7 @@ app.whenReady().then(() => {
   startServer();
   createWindow();
   createTray();
+  setupAutoUpdater();
 });
 
 app.on('window-all-closed', (e) => {
