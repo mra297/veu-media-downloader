@@ -1,0 +1,40 @@
+========================================================
+   HUONG DAN CAI DAT - VEU MEDIA DOWNLOADER
+========================================================
+
+>>> CAI DAT LAN DAU <<<
+
+1. Tai file cai dat tai:
+   https://github.com/mra297/veu-media-downloader/releases/latest
+
+   Bam vao file: "Veu Media Downloader Setup x.x.x.exe"
+
+2. Chay file vua tai.
+   - Neu Windows hien canh bao "Windows protected your PC":
+     bam "More info" -> "Run anyway" (app an toan, chi chua canh bao
+     vi chua mua chung chi ky so - khong sao ca).
+
+3. Chon thu muc cai (hoac de mac dinh) -> Install.
+
+4. Mo app tu Desktop hoac Start Menu.
+
+>>> DANG NHAP YOUTUBE (QUAN TRONG - chong chan khi tai nhieu) <<<
+
+1. Mo app -> goc tren phai bam nut "Dang nhap YouTube" (bieu tuong chia khoa).
+2. Cua so YouTube hien ra -> dang nhap tai khoan.
+3. Dang nhap xong -> DONG cua so do lai.
+4. Nut chuyen thanh "YouTube v" mau xanh = da xong.
+
+>>> CHON THU MUC LUU VIDEO <<<
+
+Trong app -> chon thu muc luu (mac dinh se tao thu muc "downloads").
+Doi lai theo y minh.
+
+>>> CAP NHAT <<<
+
+App TU DONG cap nhat! Moi khi co ban moi, app se tu tai va cai
+trong lan mo ke tiep. Khong can lam gi ca.
+
+========================================================
+Co van de gi bao lai admin.
+========================================================
