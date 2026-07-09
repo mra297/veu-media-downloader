@@ -1,6 +1,6 @@
 {
   "name": "veu-media-downloader",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Veu's multi-platform video downloader",
   "main": "electron-main.js",
   "scripts": {
@@ -27,6 +27,7 @@
     "files": [
       "electron-main.js",
       "preload.js",
+      "preload-update.js",
       "server.js",
       "engine.js",
       "capcut-injector.js",

@@ -6,30 +6,49 @@ app.commandLine.appendSwitch('disable-background-timer-throttling');
 const path = require('path');
 const fs = require('fs');
 
-// ===== Auto-update app qua GitHub Releases =====
+// ===== Cập nhật app qua GitHub Releases — POPUP đẹp giữa màn hình =====
+let _updater = null;
+let _updateInfo = null;
+let updateWin = null;
+function ulog(msg) { try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] ${msg}\n`); } catch {} }
+function sendToUpdateWin(fn, arg) {
+  if (updateWin && !updateWin.isDestroyed()) {
+    updateWin.webContents.executeJavaScript(`window.${fn} && window.${fn}(${JSON.stringify(arg)})`).catch(() => {});
+  }
+}
+function openUpdateWindow(info) {
+  if (updateWin && !updateWin.isDestroyed()) { updateWin.focus(); return; }
+  updateWin = new BrowserWindow({
+    width: 560, height: 520, resizable: false, minimizable: false, maximizable: false,
+    title: 'Cập nhật Veu Downloader', parent: mainWindow || undefined, modal: false,
+    icon: fs.existsSync(ICON) ? ICON : undefined, backgroundColor: '#ffffff',
+    webPreferences: { preload: path.join(__dirname, 'preload-update.js'), contextIsolation: true, nodeIntegration: false },
+  });
+  updateWin.setMenuBarVisibility(false);
+  updateWin.loadFile(path.join(__dirname, 'public', 'update.html'));
+  updateWin.webContents.on('did-finish-load', () => {
+    sendToUpdateWin('_updInfo', { version: info.version, notes: (info.releaseNotes && typeof info.releaseNotes === 'string') ? info.releaseNotes.replace(/<[^>]+>/g, '') : '' });
+  });
+  updateWin.on('closed', () => { updateWin = null; });
+}
 function setupAutoUpdater() {
   try {
     const { autoUpdater } = require('electron-updater');
-    autoUpdater.autoDownload = true;
+    _updater = autoUpdater;
+    autoUpdater.autoDownload = false;          // KHÔNG tự tải — chờ bấm nút trong popup
     autoUpdater.autoInstallOnAppQuit = true;
     autoUpdater.on('update-available', (info) => {
-      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] update-available: ${info.version}\n`); } catch {}
+      _updateInfo = info;
+      ulog('update-available: ' + info.version);
+      openUpdateWindow(info);                   // Hiện POPUP giữa màn hình
     });
-    autoUpdater.on('update-downloaded', (info) => {
-      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] update-downloaded: ${info.version} — se cai khi thoat app\n`); } catch {}
-      // Báo cho UI biết có bản mới (nếu cần)
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.executeJavaScript(`window._veuUpdateReady && window._veuUpdateReady(${JSON.stringify(info.version)})`).catch(()=>{});
-      }
-    });
-    autoUpdater.on('error', (err) => {
-      try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] updater err: ${err.message}\n`); } catch {}
-    });
-    // Check sau 6s cho app ổn định, rồi lặp mỗi 2 tiếng
-    setTimeout(() => { autoUpdater.checkForUpdates().catch(()=>{}); }, 6000);
-    setInterval(() => { autoUpdater.checkForUpdates().catch(()=>{}); }, 2 * 60 * 60 * 1000);
+    autoUpdater.on('download-progress', (p) => { sendToUpdateWin('_updProgress', Math.round(p.percent)); });
+    autoUpdater.on('update-downloaded', (info) => { ulog('update-downloaded: ' + info.version); sendToUpdateWin('_updDownloaded', info.version); });
+    autoUpdater.on('error', (err) => { ulog('updater err: ' + err.message); sendToUpdateWin('_updError', String(err.message || err)); });
+    setTimeout(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 6000);
+    setInterval(() => { autoUpdater.checkForUpdates().catch(() => {}); }, 2 * 60 * 60 * 1000);
   } catch (e) {
-    try { fs.appendFileSync(path.join(__dirname, 'electron.log'), `[${new Date().toISOString()}] setupAutoUpdater fail: ${e.message}\n`); } catch {}
+    ulog('setupAutoUpdater fail: ' + e.message);
   }
 }
 
@@ -227,6 +246,27 @@ app.whenReady().then(() => {
       const lines = fs.readFileSync(COOKIE_FILE, 'utf8').split('\n').filter(l => l && !l.startsWith('#')).length;
       return { exists: true, count: lines, mtime: st.mtime };
     } catch { return { exists: false }; }
+  });
+
+  // ===== IPC cho nút Update =====
+  ipcMain.handle('update-check', async () => {
+    if (!_updater) return { ok: false, error: 'updater chưa sẵn sàng' };
+    try { const r = await _updater.checkForUpdates(); return { ok: true, version: r && r.updateInfo ? r.updateInfo.version : null }; }
+    catch (e) { return { ok: false, error: String(e.message || e) }; }
+  });
+  ipcMain.handle('update-download', async () => {
+    if (!_updater) return { ok: false, error: 'updater chưa sẵn sàng' };
+    try { _updater.downloadUpdate().catch(() => {}); return { ok: true }; }
+    catch (e) { return { ok: false, error: String(e.message || e) }; }
+  });
+  ipcMain.handle('update-install', async () => {
+    if (!_updater) return { ok: false };
+    try { app.isQuiting = true; setImmediate(() => _updater.quitAndInstall(false, true)); return { ok: true }; }
+    catch (e) { return { ok: false, error: String(e.message || e) }; }
+  });
+  ipcMain.handle('update-close', async () => {
+    if (updateWin && !updateWin.isDestroyed()) updateWin.close();
+    return { ok: true };
   });
 
   // IPC: native folder picker — INSTANT (Electron exposes Windows IFileDialog directly)

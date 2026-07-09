@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Cập nhật Veu Downloader</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Tahoma, sans-serif; background: #fff; color: #1f2328; padding: 26px 28px; user-select: none; overflow: hidden; }
+  h1 { font-size: 22px; font-weight: 800; color: #111; margin-bottom: 10px; }
+  .warn { color: #e11d48; font-size: 13px; margin-bottom: 16px; font-style: italic; }
+  .label { font-size: 13px; color: #6b7280; margin-bottom: 6px; }
+  .ver { font-size: 15px; font-weight: 700; color: #111; margin-bottom: 14px; }
+  .changes { font-size: 14px; color: #374151; line-height: 1.9; margin-bottom: 18px; max-height: 150px; overflow-y: auto; white-space: pre-wrap; }
+  .progwrap { margin: 14px 0 6px; }
+  .progbar { height: 10px; background: #e5e7eb; border-radius: 6px; overflow: hidden; }
+  .progfill { height: 100%; width: 0%; background: linear-gradient(90deg,#10B981,#34d399); transition: width .25s; }
+  .progtxt { text-align: right; font-size: 12px; color: #6b7280; margin-top: 4px; }
+  .status { font-size: 13px; color: #6b7280; margin: 10px 0; }
+  .btns { display: flex; gap: 12px; margin-top: 18px; }
+  button { flex: 1; padding: 11px 8px; font-size: 14px; font-weight: 700; border: none; border-radius: 8px; cursor: pointer; transition: .15s; }
+  .btn-primary { background: #10B981; color: #fff; }
+  .btn-primary:hover { background: #059669; }
+  .btn-secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+  .btn-secondary:hover { background: #e5e7eb; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  .foot { font-size: 12px; color: #9ca3af; margin-top: 14px; text-align: center; }
+</style>
+</head>
+<body>
+  <h1>🎉 Có bản cập nhật mới!</h1>
+  <div class="warn" id="warnLine">*Đang nâng cấp, vui lòng không tắt cửa sổ này!</div>
+
+  <div class="label">Phiên bản mới nhất:</div>
+  <div class="ver" id="verLine">—</div>
+
+  <div class="label">Bản cập nhật này gồm:</div>
+  <div class="changes" id="changesBox">Đang tải thông tin...</div>
+
+  <div class="progwrap" id="progWrap" style="display:none;">
+    <div class="progbar"><div class="progfill" id="progFill"></div></div>
+    <div class="progtxt" id="progTxt">0%</div>
+  </div>
+
+  <div class="status" id="statusLine">Đang chờ...</div>
+
+  <div class="btns">
+    <button class="btn-primary" id="btnUpdate">⬇️ Cập nhật ngay</button>
+    <button class="btn-secondary" id="btnLater">Để sau</button>
+  </div>
+  <div class="foot">Veu Media Downloader Updater</div>
+
+<script>
+  const api = window.updaterAPI;
+  let state = 'available';
+
+  api.onInfo((info) => {
+    document.getElementById('verLine').textContent = 'v' + (info.version || '?');
+    const notes = (info.notes || '').trim();
+    document.getElementById('changesBox').textContent = notes || '• Cải thiện hiệu năng & sửa lỗi';
+  });
+  api.onProgress((pct) => {
+    state = 'downloading';
+    document.getElementById('progWrap').style.display = 'block';
+    document.getElementById('progFill').style.width = pct + '%';
+    document.getElementById('progTxt').textContent = pct + '%';
+    document.getElementById('statusLine').textContent = '⬇️ Đang tải bản cập nhật...';
+    document.getElementById('btnUpdate').disabled = true;
+    document.getElementById('btnLater').disabled = true;
+  });
+  api.onDownloaded(() => {
+    state = 'ready';
+    document.getElementById('statusLine').textContent = '✅ Tải xong! Sẵn sàng cài đặt.';
+    document.getElementById('progFill').style.width = '100%';
+    document.getElementById('progTxt').textContent = '100%';
+    const b = document.getElementById('btnUpdate');
+    b.disabled = false; b.textContent = '🔄 Khởi động lại & Cài';
+    document.getElementById('btnLater').disabled = false;
+    document.getElementById('btnLater').textContent = 'Cài khi thoát';
+  });
+  api.onError((msg) => {
+    document.getElementById('statusLine').textContent = '⚠️ Lỗi: ' + msg + ' — thử lại sau.';
+    document.getElementById('btnUpdate').disabled = false;
+    document.getElementById('btnLater').disabled = false;
+  });
+
+  document.getElementById('btnUpdate').addEventListener('click', () => {
+    if (state === 'available' || state === 'error') { api.download(); document.getElementById('statusLine').textContent = 'Bắt đầu tải...'; }
+    else if (state === 'ready') { api.install(); }
+  });
+  document.getElementById('btnLater').addEventListener('click', () => { api.close(); });
+</script>
+</body>
+</html>
